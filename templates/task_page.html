@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes da Tarefa - {{ task.title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { padding: 2rem; background: var(--bg-dark); overflow-y: auto; height: auto; }
+        .task-page-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .ai-section {
+            display: flex;
+            gap: 1.5rem;
+        }
+        .blocks-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .blocks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .block-item {
+            background: rgba(0,0,0,0.2);
+            padding: 0.75rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        .block-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .ai-generator {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: rgba(255,255,255,0.02);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+        .ai-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .ai-btn:hover { opacity: 0.9; }
+        .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        #task-description-content {
+            line-height: 1.6;
+        }
+        #task-description-content h1, #task-description-content h2, #task-description-content h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        #task-description-content ul { margin-left: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="task-page-container">
+        <a href="/" style="color: var(--primary); text-decoration: none;">← Voltar para a Plataforma</a>
+        
+        <div class="task-header glass-panel">
+            <h2>{{ task.title }}</h2>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                <span class="task-status-badge">Fase: {{ task.phase }}</span>
+                <span class="task-status-badge" style="background: var(--primary);">Status: {{ task.status }}</span>
+                {% if task.deadline %}
+                <span class="task-status-badge" style="background: transparent; border: 1px solid var(--border-color);">Prazo: {{ task.deadline.strftime('%d/%m/%Y') }}</span>
+                {% endif %}
+            </div>
+            <p style="margin-top: 1rem;"><strong>Designado:</strong> {{ task.assignee.name if task.assignee else 'Nenhum' }}</p>
+        </div>
+        
+        <!-- Seção de IA e Blocos -->
+        <div class="ai-section glass-panel">
+            <div class="blocks-panel">
+                <h3>Blocos de Informação</h3>
+                <div class="blocks-list" id="blocks-list">
+                    {% for block in blocks %}
+                    <div class="block-item">
+                        <strong>{{ block.block_type }}</strong>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">{{ block.content }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="block-form">
+                    <select id="block-type" style="padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color);">
+                        <option value="Descrição Inicial">Descrição Inicial</option>
+                        <option value="Regra de Negócio">Regra de Negócio</option>
+                        <option value="Requisito Técnico">Requisito Técnico</option>
+                        <option value="Observação">Observação</option>
+                    </select>
+                    <textarea id="block-content" placeholder="Conteúdo do bloco..." style="padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); height: 80px;"></textarea>
+                    <button id="btn-add-block" class="btn-primary">Adicionar Bloco</button>
+                </div>
+            </div>
+            
+            <div class="ai-generator">
+                <h3>✨ Gerador de Markdown</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">
+                    Use a IA do Gemini para compilar todos os blocos ao lado em um documento limpo e estruturado.
+                </p>
+                <textarea id="ai-prompt" placeholder="Prompt específico (Opcional). Ex: Dê ênfase nas regras de negócio e crie uma checklist técnica." style="flex: 1; padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color);"></textarea>
+                <button id="btn-generate-ai" class="ai-btn">Gerar Markdown com IA</button>
+            </div>
+        </div>
+
+        <div class="task-body glass-panel">
+            <h3>Descrição / Definição</h3>
+            <div id="task-description-content" style="margin-top: 1rem;">
+                <!-- Content will be rendered here by marked.js -->
+            </div>
+        </div>
+        
+        <div class="task-attachments glass-panel">
+            <h3>Arquivos e Anexos</h3>
+            <div class="upload-area">
+                <span>Clique ou arraste arquivos para esta tarefa (em desenvolvimento)</span>
+                <input type="file" id="task-file-input" hidden>
+            </div>
+            <div class="file-list" id="task-file-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const taskId = {{ task.id }};
+        const initialRawDesc = {{ task.description | tojson | safe if task.description else '""' }};
+        
+        const descContainer = document.getElementById('task-description-content');
+        if(initialRawDesc && initialRawDesc.trim() !== '') {
+            descContainer.innerHTML = marked.parse(initialRawDesc);
+        } else {
+            descContainer.innerHTML = '<p style="color: var(--text-muted);">Sem descrição fornecida. Adicione blocos e gere um markdown!</p>';
+        }
+
+        document.getElementById('btn-add-block').addEventListener('click', async () => {
+            const type = document.getElementById('block-type').value;
+            const content = document.getElementById('block-content').value.trim();
+            if(!content) return;
+
+            const res = await fetch(`/api/tasks/${taskId}/blocks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, content })
+            });
+
+            if(res.ok) {
+                const data = await res.json();
+                const list = document.getElementById('blocks-list');
+                const div = document.createElement('div');
+                div.className = 'block-item';
+                div.innerHTML = `<strong>${data.type}</strong><p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">${data.content}</p>`;
+                list.appendChild(div);
+                document.getElementById('block-content').value = '';
+                list.scrollTop = list.scrollHeight;
+            }
+        });
+
+        document.getElementById('btn-generate-ai').addEventListener('click', async (e) => {
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            const btn = e.target;
+            
+            btn.disabled = true;
+            btn.textContent = 'Gerando... (Aguarde)';
+
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const data = await res.json();
+                if(res.ok) {
+                    descContainer.innerHTML = marked.parse(data.markdown);
+                    alert("Markdown gerado com sucesso!");
+                } else {
+                    alert("Erro: " + data.error);
+                }
+            } catch (err) {
+                alert("Erro ao conectar com a IA");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Gerar Markdown com IA';
+            }
+        });
+    </script>
+</body>
+</html>

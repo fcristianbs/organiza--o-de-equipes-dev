@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma Dev - Kanban e Projetos</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barra Lateral Esquerda (Navegação / Projetos) -->
+        <aside class="sidebar-left glass-panel">
+            <div class="brand">
+                <div class="logo"></div>
+                <h2>DevSpace</h2>
+            </div>
+            
+            <button class="btn-primary" id="btn-new-project">+ Novo Projeto</button>
+            
+            <nav class="project-list" id="project-list">
+                <h3>Recentes</h3>
+                <ul>
+                    {% for project in projects %}
+                        <li data-project-id="{{ project.id }}" class="project-item">{{ project.name }}</li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar">{{ current_user.name[:1] }}</div>
+                <span>{{ current_user.name }}</span>
+            </div>
+        </aside>
+
+        <!-- Painel de Anotações Empilhadas -->
+        <section class="notes-panel glass-panel hidden" id="notes-panel">
+            <div class="notes-header">
+                <h3>Anotações</h3>
+                <div class="note-tabs">
+                    <button class="tab-btn active" data-tab="rf">RF</button>
+                    <button class="tab-btn" data-tab="rt">RT</button>
+                    <button class="tab-btn" data-tab="todo">TODO</button>
+                </div>
+            </div>
+            <div class="notes-list" id="notes-list">
+                <!-- Anotações dinâmicas -->
+            </div>
+            <div class="note-input-container">
+                <select id="note-category">
+                    <option value="Requisito Funcional">RF</option>
+                    <option value="Requisito Técnico">RT</option>
+                    <option value="Solicitação">Sol.</option>
+                    <option value="TODO">TODO</option>
+                </select>
+                <input type="text" id="note-input" placeholder="Nova anotação...">
+                <button id="btn-add-note" class="btn-icon">➜</button>
+            </div>
+        </section>
+
+        <!-- Área Central (Kanban) -->
+        <main class="main-content">
+            <header class="main-header glass-panel">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <h1 id="current-view-title">Visão Global</h1>
+                    <button class="btn-primary hidden" id="btn-new-task">+ Nova Tarefa</button>
+                </div>
+                <div class="view-toggles hidden" id="project-toggles">
+                    <button class="tab-btn active" data-view="kanban">Kanban</button>
+                    <button class="tab-btn" data-view="report">Atas / Relatório</button>
+                </div>
+            </header>
+
+            <div class="view-container">
+                <!-- Visão Kanban -->
+                <div class="kanban-board" id="kanban-board">
+                    <div class="kanban-column" data-phase="Ideação/Requisitos">
+                        <h3>Ideação/Requisitos</h3>
+                        <div class="kanban-cards-container"></div>
+                    </div>
+                    <div class="kanban-column" data-phase="Prototipagem">
+                        <h3>Prototipagem</h3>
+                        <div class="kanban-cards-container"></div>
+                    </div>
+                    <div class="kanban-column" data-phase="Dev Ativo">
+                        <h3>Dev Ativo</h3>
+                        <div class="kanban-cards-container"></div>
+                    </div>
+                    <div class="kanban-column" data-phase="Q.A. e Testes">
+                        <h3>Q.A. e Testes</h3>
+                        <div class="kanban-cards-container"></div>
+                    </div>
+                </div>
+
+                <!-- Visão Relatório (Markdown) -->
+                <div class="report-view hidden" id="report-view">
+                    <div class="markdown-editor">
+                        <textarea id="report-input"></textarea>
+                    </div>
+                    <div class="markdown-preview" id="report-preview">
+                        <!-- Renderizado via marked.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat do Projeto (Parte inferior) -->
+            <div class="chat-panel glass-panel hidden" id="chat-panel">
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Mensagens dinâmicas -->
+                </div>
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="Digite uma mensagem...">
+                    <button id="btn-send-message" class="btn-icon">➤</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Barra Direita (Mini Drive) -->
+        <aside class="sidebar-right glass-panel hidden" id="sidebar-right">
+            <h3>Mini Drive</h3>
+            <div class="upload-area" id="upload-area">
+                <span>Clique ou arraste arquivos</span>
+                <input type="file" id="file-input" hidden>
+            </div>
+            <div class="file-list" id="file-list">
+                <!-- Arquivos anexados -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-new-project">
+        <div class="modal glass-panel">
+            <h2>Criar Novo Projeto</h2>
+            <input type="text" id="new-project-name" placeholder="Nome do Projeto">
+            <textarea id="new-project-desc" placeholder="Descrição"></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="btn-cancel-project">Cancelar</button>
+                <button class="btn-primary" id="btn-save-project">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nova Tarefa -->
+    <div class="modal-overlay" id="modal-new-task">
+        <div class="modal glass-panel">
+            <h2>Nova Tarefa</h2>
+            <input type="text" id="new-task-title" placeholder="Título da Tarefa">
+            <textarea id="new-task-desc" placeholder="Descrição ou Definição Inicial"></textarea>
+            <select id="new-task-assignee">
+                <option value="">Atribuir a um membro...</option>
+                <!-- Preenchido via JS -->
+            </select>
+            <input type="date" id="new-task-deadline" placeholder="Prazo final">
+            <div class="modal-actions">
+                <button class="btn-secondary" id="btn-cancel-task">Cancelar</button>
+                <button class="btn-primary" id="btn-save-task">Criar Tarefa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tarefa Rápida -->
+    <div class="modal-overlay" id="modal-quick-task">
+        <div class="modal glass-panel">
+            <h2 id="quick-task-title"></h2>
+            <p><strong>Designado:</strong> <span id="quick-task-assignee"></span></p>
+            <p><strong>Status:</strong> <span id="quick-task-status"></span></p>
+            <p id="quick-task-desc"></p>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="btn-close-quick-task">Fechar</button>
+                <button class="btn-primary" id="btn-open-task-full">Abrir Detalhes (Nova Aba)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
