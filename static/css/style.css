@@ -94,20 +94,97 @@ button {
     flex-direction: column;
     padding: 1.5rem;
     gap: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.sidebar-header-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.btn-toggle-sidebar {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-toggle-sidebar:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-main);
+}
+
+/* Collapsed Left Sidebar */
+.sidebar-left.collapsed {
+    width: 60px;
+    padding: 1rem 0.5rem;
+    align-items: center;
+}
+
+.sidebar-left.collapsed .brand h2,
+.sidebar-left.collapsed #btn-new-project,
+.sidebar-left.collapsed .project-list,
+.sidebar-left.collapsed .user-profile span {
+    display: none !important;
+}
+
+.sidebar-left.collapsed .user-profile {
+    margin-top: auto;
+}
+
+/* Collapsed Right Sidebar (Mini Drive) */
+.sidebar-right.collapsed {
+    width: 55px;
+    padding: 1rem 0.5rem;
+    align-items: center;
+}
+
+.sidebar-right.collapsed .upload-area,
+.sidebar-right.collapsed .file-list,
+.sidebar-right.collapsed h3 {
+    display: none !important;
+}
+
+/* Collapsed Notes Panel */
 .notes-panel {
     width: 300px;
     margin: 1rem 0 1rem 1rem;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notes-panel.collapsed {
+    width: 55px;
+    margin: 1rem 0 1rem 0.5rem;
+    padding: 0.5rem;
+    align-items: center;
+}
+
+.notes-panel.collapsed .note-tabs,
+.notes-panel.collapsed .notes-list,
+.notes-panel.collapsed .note-input-container,
+.notes-panel.collapsed h3 {
+    display: none !important;
 }
 
 .notes-header {
     padding: 1rem;
     border-bottom: 1px solid var(--border-color);
 }
+
 
 .note-tabs {
     display: flex;
@@ -129,11 +206,44 @@ button {
     padding: 0.75rem;
     border-radius: 8px;
     border-left: 4px solid var(--primary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    position: relative;
 }
 
 .note-item.rf { border-left-color: var(--rf-color); }
 .note-item.rt { border-left-color: var(--rt-color); }
 .note-item.todo { border-left-color: var(--todo-color); }
+.note-item.completed { border-left-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+
+.note-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.note-item-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.note-action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.note-action-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.15);
+}
+
 
 .note-input-container {
     padding: 1rem;
@@ -284,10 +394,46 @@ button {
 }
 
 /* --- Task Status Colors --- */
-.kanban-card.status-pendente { border-left: 4px solid var(--alert-color); }
-.kanban-card.status-em-progresso { border-left: 4px solid var(--primary); }
-.kanban-card.status-concluido { border-left: 4px solid var(--success-color, #10b981); }
-.kanban-card.status-atrasado { border-left: 4px solid var(--warning-color, #f59e0b); }
+.kanban-card.status-pendente { border-left: 5px solid #ef4444; }
+.kanban-card.status-em-progresso, .kanban-card.status-em-andamento { border-left: 5px solid #3b82f6; }
+.kanban-card.status-concluido { border-left: 5px solid #10b981; }
+.kanban-card.status-atrasado { border-left: 5px solid #eab308; }
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.status-pendente {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.status-badge.status-em-progresso, .status-badge.status-em-andamento {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.status-badge.status-concluido {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.status-badge.status-atrasado {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
 
 .alert-bell {
     position: absolute;
@@ -296,74 +442,102 @@ button {
     color: var(--alert-color);
 }
 
-/* --- Chat Panel --- */
-.chat-panel {
-    height: 200px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-}
-
-/* --- Task View --- */
-.task-view {
+/* --- Main Content Layout Containment --- */
+.main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
+    padding: 1rem;
     gap: 1rem;
-    padding-bottom: 1rem;
-    overflow-y: auto;
+    position: relative;
+    min-width: 0;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
 }
 
-.task-header {
-    padding: 1.5rem;
+/* --- Chat Panel --- */
+.chat-panel {
+    height: 210px;
+    max-height: 220px;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-}
-
-.task-status-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 99px;
-    background: var(--primary);
-    font-size: 0.8rem;
-    width: fit-content;
-}
-
-.task-body, .task-attachments {
-    padding: 1.5rem;
-    border-radius: 12px;
-}
-    height: 200px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
 }
 
 .chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.6rem;
+    min-height: 0;
 }
 
+/* Chat Message Bubbles */
 .chat-msg {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    word-break: break-word;
+    animation: fadeInMsg 0.2s ease-out;
+}
+
+@keyframes fadeInMsg {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg.self {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--primary) 0%, #a855f7 100%);
+    color: white;
+    border-radius: 14px 14px 2px 14px;
+    padding: 0.5rem 0.85rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.chat-msg.other {
     align-self: flex-start;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    border-radius: 14px 14px 14px 2px;
+    padding: 0.5rem 0.85rem;
+}
+
+.chat-msg-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #818cf8;
+    margin-bottom: 0.2rem;
+}
+
+.chat-msg-text {
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.chat-msg-time {
+    font-size: 0.7rem;
+    opacity: 0.65;
+    text-align: right;
+    margin-top: 0.25rem;
 }
 
 .chat-input-container {
-    padding: 1rem;
+    padding: 0.5rem 0.75rem;
     border-top: 1px solid var(--border-color);
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.4);
+    flex-shrink: 0;
 }
+
 
 .chat-input-container input, .note-input-container input, .modal input, .modal textarea, select {
     flex: 1;

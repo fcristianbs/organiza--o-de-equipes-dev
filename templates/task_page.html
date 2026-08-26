@@ -84,19 +84,41 @@
 </head>
 <body>
     <div class="task-page-container">
-        <a href="/" style="color: var(--primary); text-decoration: none;">← Voltar para a Plataforma</a>
+        <a href="/?project={{ task.project_id }}" style="color: var(--primary); text-decoration: none; font-weight: 500;">← Voltar para o Projeto</a>
+
         
         <div class="task-header glass-panel">
             <h2>{{ task.title }}</h2>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+            <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem; align-items: center; flex-wrap: wrap;">
                 <span class="task-status-badge">Fase: {{ task.phase }}</span>
-                <span class="task-status-badge" style="background: var(--primary);">Status: {{ task.status }}</span>
+                
+                <div style="display: flex; align-items: center; gap: 0.4rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 20px; border: 1px solid var(--border-color);">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Status:</span>
+                    <select id="task-status-select" style="background: var(--primary); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; transition: transform 0.2s;">
+                        <option value="Pendente" {% if task.status == 'Pendente' %}selected{% endif %}>Pendente</option>
+                        <option value="Em Andamento" {% if task.status == 'Em Andamento' %}selected{% endif %}>Em Andamento</option>
+                        <option value="Concluido" {% if task.status == 'Concluido' or task.status == 'Concluído' %}selected{% endif %}>Concluído</option>
+                        <option value="Atrasado" {% if task.status == 'Atrasado' %}selected{% endif %}>Atrasado</option>
+                    </select>
+                </div>
+
+                <button id="btn-save-task-status" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 0.35rem 0.85rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; transition: transform 0.2s; box-shadow: 0 2px 8px rgba(16,185,129,0.3);">💾 Salvar Status</button>
+                <span id="save-status-indicator" style="font-size: 0.85rem; color: #10b981; font-weight: 700; opacity: 0; transition: opacity 0.3s;">Salvo ✓</span>
+
+
                 {% if task.deadline %}
                 <span class="task-status-badge" style="background: transparent; border: 1px solid var(--border-color);">Prazo: {{ task.deadline.strftime('%d/%m/%Y') }}</span>
                 {% endif %}
             </div>
             <p style="margin-top: 1rem;"><strong>Designado:</strong> {{ task.assignee.name if task.assignee else 'Nenhum' }}</p>
+            {% if task.description %}
+            <div style="margin-top: 1rem; padding: 0.85rem; background: rgba(255,255,255,0.04); border-radius: 8px; border-left: 3px solid var(--primary);">
+                <strong style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Descrição Inicial:</strong>
+                <p style="margin-top: 0.25rem; white-space: pre-wrap; font-size: 0.95rem;">{{ task.description }}</p>
+            </div>
+            {% endif %}
         </div>
+
         
         <!-- Seção de IA e Blocos -->
         <div class="ai-section glass-panel">
@@ -104,21 +126,22 @@
                 <h3>Blocos de Informação</h3>
                 <div class="blocks-list" id="blocks-list">
                     {% for block in blocks %}
-                    <div class="block-item">
-                        <strong>{{ block.block_type }}</strong>
-                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">{{ block.content }}</p>
+                    <div class="block-item" data-block-id="{{ block.id }}">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                            <div style="flex: 1;">
+                                {% if block.block_type and block.block_type not in ['Informação', 'Bloco'] %}
+                                <span style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">{{ block.block_type }}</span>
+                                {% endif %}
+                                <p style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">{{ block.content }}</p>
+                            </div>
+                            <button class="btn-delete-block" onclick="deleteBlock({{ block.id }}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">🗑️</button>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
                 
                 <div class="block-form">
-                    <select id="block-type" style="padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color);">
-                        <option value="Descrição Inicial">Descrição Inicial</option>
-                        <option value="Regra de Negócio">Regra de Negócio</option>
-                        <option value="Requisito Técnico">Requisito Técnico</option>
-                        <option value="Observação">Observação</option>
-                    </select>
-                    <textarea id="block-content" placeholder="Conteúdo do bloco..." style="padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); height: 80px;"></textarea>
+                    <textarea id="block-content" placeholder="Adicione uma informação, requisito ou observação..." style="padding: 0.6rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); height: 80px; resize: vertical;"></textarea>
                     <button id="btn-add-block" class="btn-primary">Adicionar Bloco</button>
                 </div>
             </div>
@@ -134,7 +157,7 @@
         </div>
 
         <div class="task-body glass-panel">
-            <h3>Descrição / Definição</h3>
+            <h3>✨ Documentação / Markdown Gerado por IA</h3>
             <div id="task-description-content" style="margin-top: 1rem;">
                 <!-- Content will be rendered here by marked.js -->
             </div>
@@ -152,24 +175,119 @@
 
     <script>
         const taskId = {{ task.id }};
-        const initialRawDesc = {{ task.description | tojson | safe if task.description else '""' }};
+        const generatedMarkdown = {{ task.generated_markdown | tojson | safe if task.generated_markdown else '""' }};
         
         const descContainer = document.getElementById('task-description-content');
-        if(initialRawDesc && initialRawDesc.trim() !== '') {
-            descContainer.innerHTML = marked.parse(initialRawDesc);
+        if(generatedMarkdown && generatedMarkdown.trim() !== '') {
+            descContainer.innerHTML = marked.parse(generatedMarkdown);
         } else {
-            descContainer.innerHTML = '<p style="color: var(--text-muted);">Sem descrição fornecida. Adicione blocos e gere um markdown!</p>';
+            descContainer.innerHTML = '<p style="color: var(--text-muted);">Nenhum Markdown gerado ainda. Adicione blocos ao lado e clique em "Gerar Markdown com IA"!</p>';
+        }
+
+        const statusSelect = document.getElementById('task-status-select');
+        function updateStatusSelectColor(el) {
+            if (!el) return;
+            const val = el.value.toLowerCase();
+            if (val.includes('pendente')) {
+                el.style.background = '#ef4444';
+            } else if (val.includes('progresso') || val.includes('andamento')) {
+                el.style.background = '#3b82f6';
+            } else if (val.includes('concluid')) {
+                el.style.background = '#10b981';
+            } else if (val.includes('atrasad')) {
+                el.style.background = '#eab308';
+            } else {
+                el.style.background = 'var(--primary)';
+            }
+        }
+
+        async function saveTaskStatus() {
+            if (!statusSelect) return;
+            const newStatus = statusSelect.value;
+            updateStatusSelectColor(statusSelect);
+            
+            const indicator = document.getElementById('save-status-indicator');
+            if (indicator) {
+                indicator.textContent = 'Salvando...';
+                indicator.style.color = '#eab308';
+                indicator.style.opacity = '1';
+            }
+
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (res.ok) {
+                    statusSelect.style.transform = 'scale(1.08)';
+                    setTimeout(() => statusSelect.style.transform = 'scale(1)', 200);
+                    if (indicator) {
+                        indicator.textContent = 'Salvo ✓';
+                        indicator.style.color = '#10b981';
+                        setTimeout(() => { indicator.style.opacity = '0'; }, 2500);
+                    }
+                } else {
+                    if (indicator) {
+                        indicator.textContent = 'Erro ao salvar!';
+                        indicator.style.color = '#ef4444';
+                    }
+                }
+            } catch(err) {
+                if (indicator) {
+                    indicator.textContent = 'Erro de conexão!';
+                    indicator.style.color = '#ef4444';
+                }
+            }
+        }
+
+        if (statusSelect) {
+            updateStatusSelectColor(statusSelect);
+            statusSelect.addEventListener('change', saveTaskStatus);
+        }
+
+        const btnSaveTaskStatus = document.getElementById('btn-save-task-status');
+        if (btnSaveTaskStatus) {
+            btnSaveTaskStatus.addEventListener('click', saveTaskStatus);
+        }
+
+        const backLink = document.querySelector('a[href*="/?project="]');
+        if (backLink) {
+            backLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await saveTaskStatus();
+                window.location.href = backLink.getAttribute('href');
+            });
+        }
+
+
+
+
+
+        async function deleteBlock(blockId, element) {
+            if (!confirm("Remover este bloco de informação?")) return;
+            try {
+                const res = await fetch(`/api/blocks/${blockId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    const blockItem = element.closest('.block-item');
+                    if (blockItem) blockItem.remove();
+                } else {
+                    alert("Erro ao remover o bloco.");
+                }
+            } catch (err) {
+                alert("Erro de conexão ao remover o bloco.");
+            }
         }
 
         document.getElementById('btn-add-block').addEventListener('click', async () => {
-            const type = document.getElementById('block-type').value;
             const content = document.getElementById('block-content').value.trim();
             if(!content) return;
 
             const res = await fetch(`/api/tasks/${taskId}/blocks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, content })
+                body: JSON.stringify({ type: 'Informação', content })
             });
 
             if(res.ok) {
@@ -177,12 +295,21 @@
                 const list = document.getElementById('blocks-list');
                 const div = document.createElement('div');
                 div.className = 'block-item';
-                div.innerHTML = `<strong>${data.type}</strong><p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">${data.content}</p>`;
+                div.dataset.blockId = data.id;
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">${data.content}</p>
+                        </div>
+                        <button class="btn-delete-block" onclick="deleteBlock(${data.id}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">🗑️</button>
+                    </div>
+                `;
                 list.appendChild(div);
                 document.getElementById('block-content').value = '';
                 list.scrollTop = list.scrollHeight;
             }
         });
+
 
         document.getElementById('btn-generate-ai').addEventListener('click', async (e) => {
             const prompt = document.getElementById('ai-prompt').value.trim();

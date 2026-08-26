@@ -14,10 +14,13 @@
 <body>
     <div class="app-container">
         <!-- Barra Lateral Esquerda (Navegação / Projetos) -->
-        <aside class="sidebar-left glass-panel">
-            <div class="brand">
-                <div class="logo"></div>
-                <h2>DevSpace</h2>
+        <aside class="sidebar-left glass-panel" id="sidebar-left">
+            <div class="sidebar-header-toggle">
+                <div class="brand">
+                    <div class="logo"></div>
+                    <h2>DevSpace</h2>
+                </div>
+                <button class="btn-toggle-sidebar" id="btn-toggle-left-sidebar" title="Recolher/Expandir Projetos">◀</button>
             </div>
             
             <button class="btn-primary" id="btn-new-project">+ Novo Projeto</button>
@@ -30,22 +33,40 @@
                     {% endfor %}
                 </ul>
             </nav>
-            <div class="user-profile">
-                <div class="avatar">{{ current_user.name[:1] }}</div>
-                <span>{{ current_user.name }}</span>
+            <div class="user-profile" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="avatar">{{ current_user.name[:1] }}</div>
+                    <div style="display: flex; flex-direction: column; overflow: hidden;">
+                        <span style="font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ current_user.name }}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ current_user.email }}</span>
+                    </div>
+                </div>
+                {% if current_user.is_master %}
+                <button class="btn-secondary" id="btn-manage-users" style="width: 100%; font-size: 0.8rem; padding: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 0.3rem; border-color: rgba(129, 140, 248, 0.4); color: #818cf8;">👥 Gestão de Usuários</button>
+                {% endif %}
+                <button class="btn-secondary" id="btn-logout" style="width: 100%; font-size: 0.8rem; padding: 0.4rem; color: #fca5a5; border-color: rgba(239,68,68,0.3);">🚪 Sair</button>
             </div>
         </aside>
+
 
         <!-- Painel de Anotações Empilhadas -->
         <section class="notes-panel glass-panel hidden" id="notes-panel">
             <div class="notes-header">
-                <h3>Anotações</h3>
+                <div class="sidebar-header-toggle">
+                    <h3>Anotações</h3>
+                    <button class="btn-toggle-sidebar" id="btn-toggle-notes-panel" title="Recolher/Expandir Anotações">◀</button>
+                </div>
                 <div class="note-tabs">
-                    <button class="tab-btn active" data-tab="rf">RF</button>
+                    <button class="tab-btn active" data-tab="all">Todas</button>
+                    <button class="tab-btn" data-tab="rf">RF</button>
                     <button class="tab-btn" data-tab="rt">RT</button>
                     <button class="tab-btn" data-tab="todo">TODO</button>
+                    <button class="tab-btn" data-tab="done" style="border-color: rgba(16,185,129,0.3); color: #6ee7b7;">Conformes ✔️</button>
                 </div>
+
+
             </div>
+
             <div class="notes-list" id="notes-list">
                 <!-- Anotações dinâmicas -->
             </div>
@@ -120,7 +141,10 @@
 
         <!-- Barra Direita (Mini Drive) -->
         <aside class="sidebar-right glass-panel hidden" id="sidebar-right">
-            <h3>Mini Drive</h3>
+            <div class="sidebar-header-toggle">
+                <h3>Mini Drive</h3>
+                <button class="btn-toggle-sidebar" id="btn-toggle-right-sidebar" title="Recolher/Expandir Mini Drive">▶</button>
+            </div>
             <div class="upload-area" id="upload-area">
                 <span>Clique ou arraste arquivos</span>
                 <input type="file" id="file-input" hidden>
@@ -129,6 +153,7 @@
                 <!-- Arquivos anexados -->
             </div>
         </aside>
+
     </div>
 
     <!-- Modals -->
@@ -146,14 +171,18 @@
 
     <!-- Modal Nova Tarefa -->
     <div class="modal-overlay" id="modal-new-task">
-        <div class="modal glass-panel">
+        <div class="modal glass-panel" style="width: 500px; max-width: 95vw;">
             <h2>Nova Tarefa</h2>
             <input type="text" id="new-task-title" placeholder="Título da Tarefa">
             <textarea id="new-task-desc" placeholder="Descrição ou Definição Inicial"></textarea>
-            <select id="new-task-assignee">
-                <option value="">Atribuir a um membro...</option>
-                <!-- Preenchido via JS -->
-            </select>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Designar Membros da Equipe:</label>
+                <div id="new-task-assignees-container" style="max-height: 110px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <!-- Preenchido via JS com checkboxes -->
+                </div>
+            </div>
+
             <input type="date" id="new-task-deadline" placeholder="Prazo final">
             <div class="modal-actions">
                 <button class="btn-secondary" id="btn-cancel-task">Cancelar</button>
@@ -164,17 +193,82 @@
 
     <!-- Modal Tarefa Rápida -->
     <div class="modal-overlay" id="modal-quick-task">
-        <div class="modal glass-panel">
-            <h2 id="quick-task-title"></h2>
-            <p><strong>Designado:</strong> <span id="quick-task-assignee"></span></p>
-            <p><strong>Status:</strong> <span id="quick-task-status"></span></p>
-            <p id="quick-task-desc"></p>
-            <div class="modal-actions">
+        <div class="modal glass-panel" style="width: 520px; max-width: 95vw;">
+            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Título da Tarefa</label>
+                <input type="text" id="quick-task-title-input" style="font-size: 1.1rem; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white; border-radius: 6px; padding: 0.5rem;">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Status</label>
+                    <select id="quick-task-status-select" style="width: 100%; font-size: 0.85rem; font-weight: 600; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white; border-radius: 6px; padding: 0.45rem; margin-top: 0.2rem; outline: none; cursor: pointer;">
+                        <option value="Pendente" style="background: #1e293b;">Pendente</option>
+                        <option value="Em Andamento" style="background: #1e293b;">Em Andamento</option>
+                        <option value="Concluido" style="background: #1e293b;">Concluído</option>
+                        <option value="Atrasado" style="background: #1e293b;">Atrasado</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Membros Designados</label>
+                    <div id="quick-task-assignees-container" style="max-height: 90px; overflow-y: auto; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.3rem; margin-top: 0.2rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                        <!-- Checkboxes de membros -->
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Descrição / Definição Inicial</label>
+                <textarea id="quick-task-desc-input" style="font-size: 0.9rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white; border-radius: 6px; padding: 0.5rem; min-height: 70px; resize: vertical;"></textarea>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button class="btn-primary" id="btn-save-quick-task" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">💾 Salvar</button>
+                <button class="btn-secondary" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);" id="btn-delete-quick-task">🗑️ Excluir</button>
                 <button class="btn-secondary" id="btn-close-quick-task">Fechar</button>
-                <button class="btn-primary" id="btn-open-task-full">Abrir Detalhes (Nova Aba)</button>
+                <button class="btn-primary" id="btn-open-task-full">Detalhes (Aba)</button>
             </div>
         </div>
     </div>
+
+
+    <!-- Modal Gestão de Usuários (Master) -->
+    <div class="modal-overlay" id="modal-manage-users">
+        <div class="modal glass-panel" style="width: 600px; max-width: 95vw;">
+            <h2>👥 Gestão de Usuários (Master)</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Cadastre novos e-mails autorizados ou gerencie a equipe.</p>
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.5rem;">
+                <h4 style="font-size: 0.9rem;">Cadastrar Novo Usuário</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <input type="text" id="admin-new-user-name" placeholder="Nome Completo">
+                    <input type="email" id="admin-new-user-email" placeholder="email@cosampa.com.br">
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select id="admin-new-user-role" style="flex: 1;">
+                        <option value="Desenvolvedor">Desenvolvedor</option>
+                        <option value="Designer">Designer</option>
+                        <option value="Gerente de Projeto">Gerente de Projeto</option>
+                        <option value="QA / Tester">QA / Tester</option>
+                    </select>
+                    <label style="display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
+                        <input type="checkbox" id="admin-new-user-master" style="width: auto;"> Master
+                    </label>
+                    <button class="btn-primary" id="btn-admin-add-user" style="padding: 0.5rem 1rem;">Adicionar</button>
+                </div>
+            </div>
+
+            <div style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;" id="admin-users-list">
+                <!-- Preenchido dinamicamente via JS -->
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-secondary" id="btn-close-manage-users">Fechar</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

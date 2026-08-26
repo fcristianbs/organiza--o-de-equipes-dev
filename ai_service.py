@@ -16,27 +16,31 @@ def generate_task_markdown(task_title, blocks, additional_prompt=""):
         
     client = genai.Client(api_key=api_key)
 
-    # Montar o conteúdo para a IA
-    blocks_text = "\n".join([f"- [{b['type']}] {b['content']}" for b in blocks])
+    # Montar o conteúdo dos blocos para a IA
+    blocks_text = "\n".join([
+        f"- [{b['type']}] {b['content']}" if b['type'] not in ['Informação', 'Bloco', ''] else f"- {b['content']}"
+        for b in blocks
+    ])
     
     prompt = f"""
-Você é um gerente de projetos técnico e assistente de desenvolvimento.
-Sua missão é gerar um documento Markdown bem estruturado, limpo e profissional para a seguinte tarefa:
+Você é um gerente de projetos técnico e especialista em engenharia de requisitos.
+Sua missão é compilar e organizar os blocos de informação brutos de uma tarefa em um documento Markdown profissional, elegante e bem estruturado.
 
 TÍTULO DA TAREFA: {task_title}
 
-BLOCOS DE INFORMAÇÃO ADICIONADOS PELA EQUIPE:
+BLOCO(S) DE INFORMAÇÃO FORNECIDO(S):
 {blocks_text}
 
 INSTRUÇÕES EXTRAS DO USUÁRIO:
 {additional_prompt if additional_prompt else 'Nenhuma.'}
 
-REGRAS PARA O MARKDOWN:
-1. Comece com o título da tarefa em h1 (#).
-2. Organize as informações de forma lógica usando cabeçalhos (##, ###).
-3. Agrupe regras de negócios, requisitos técnicos, observações, etc.
-4. Se o usuário forneceu "Instruções Extras", aplique as regras/pedidos ali contidos.
-5. Retorne APENAS o conteúdo em Markdown, sem blocos genéricos de código (```markdown) em volta de tudo, apenas o texto bruto formatado.
+DIRETRIZES DE ORGANIZAÇÃO E PROCESSAMENTO:
+1. Analise semanticamente o conteúdo de cada bloco de informação. Identifique automaticamente os tópicos pertinentes (como Descrição Geral, Regras de Negócio, Requisitos Técnicos, Critérios de Aceite, Observações ou Próximos Passos), organizando cada informação na seção mais adequada.
+2. Não exija ou dependa de rótulos padronizados nos blocos; use sua capacidade de inferência contextual para criar a estrutura do documento. Caso um bloco especifique um tópico explicitamente, respeite essa indicação.
+3. Comece o documento com o título da tarefa em h1 (# {task_title}).
+4. Utilize uma hierarquia de cabeçalhos limpos (##, ###) e listas/marcadores de fácil leitura.
+5. Se houver Instruções Extras do Usuário, aplique-as com prioridade no estilo e na estrutura final.
+6. Retorne APENAS o texto bruto formatado em Markdown, sem blocos de código (```markdown) em volta de todo o documento.
 """
     
     response = client.models.generate_content(
@@ -44,3 +48,4 @@ REGRAS PARA O MARKDOWN:
         contents=prompt
     )
     return response.text.strip()
+
