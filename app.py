@@ -428,10 +428,12 @@ def update_task_status_endpoint(task_id):
 @app.route('/api/tasks/<int:task_id>/blocks', methods=['POST'])
 def add_task_block(task_id):
     task = Task.query.get_or_404(task_id)
-    data = request.json
+    data = request.json or {}
     block_type = data.get('type', 'Informação')
     content = data.get('content', '')
-    
+    if not content:
+        return jsonify({'error': 'Conteúdo do bloco é obrigatório'}), 400
+        
     block = TaskBlock(
         task_id=task.id,
         block_type=block_type,
@@ -456,7 +458,7 @@ def generate_markdown(task_id):
     
     blocks_data = [{'type': b.block_type, 'content': b.content} for b in blocks]
     
-    data = request.json
+    data = request.json or {}
     additional_prompt = data.get('prompt', '')
     
     try:
@@ -465,23 +467,33 @@ def generate_markdown(task_id):
         db.session.commit()
         return jsonify({'message': 'Success', 'markdown': new_markdown})
     except Exception as e:
+        print("Erro Gemini:", str(e))
         return jsonify({'error': str(e)}), 500
+
 
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
-    # Delete associated blocks
-    TaskBlock.query.filter_by(task_id=task.id).delete()
-    Attachment.query.filter_by(task_id=task.id).delete()
-    
     project_id = task.project_id
+
+    # 1. Delete associated TaskBlock entries from db session
+    TaskBlock.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+    
+    # 2. Delete associated Attachment entries from db session
+    Attachment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+    
+    # 3. Clear assignees relationship to prevent FK integrity errors
+    task.assignees = []
+    
+    # 4. Delete task
     db.session.delete(task)
     db.session.commit()
     
     # Broadcast task deletion to room
     socketio.emit('task_deleted', {'task_id': task_id}, room=f"project_{project_id}")
     return jsonify({'message': 'Tarefa excluída com sucesso'})
+
 
 
 @app.route('/api/projects/<int:project_id>/notes', methods=['POST'])

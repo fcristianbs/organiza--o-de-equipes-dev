@@ -460,12 +460,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let isDeletingQuickTask = false;
+    let deleteQuickTaskTimer = null;
+
     const btnDeleteQuickTask = document.getElementById('btn-delete-quick-task');
     if (btnDeleteQuickTask) {
         btnDeleteQuickTask.addEventListener('click', async () => {
             const taskId = document.getElementById('modal-quick-task').dataset.taskId;
-            if (!taskId) return;
-            if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+            if (!taskId) return alert("Erro: ID da tarefa não encontrado.");
+
+            if (!isDeletingQuickTask) {
+                isDeletingQuickTask = true;
+                btnDeleteQuickTask.textContent = "⚠️ Confirmar Exclusão?";
+                btnDeleteQuickTask.style.background = "#ef4444";
+                btnDeleteQuickTask.style.color = "#ffffff";
+                
+                clearTimeout(deleteQuickTaskTimer);
+                deleteQuickTaskTimer = setTimeout(() => {
+                    isDeletingQuickTask = false;
+                    btnDeleteQuickTask.textContent = "🗑️ Excluir";
+                    btnDeleteQuickTask.style.background = "rgba(239, 68, 68, 0.2)";
+                    btnDeleteQuickTask.style.color = "#fca5a5";
+                }, 4000);
+                return;
+            }
+
+            clearTimeout(deleteQuickTaskTimer);
+            isDeletingQuickTask = false;
+            btnDeleteQuickTask.disabled = true;
+            btnDeleteQuickTask.textContent = "Excluindo...";
 
             try {
                 const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
@@ -475,13 +498,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         openProject(currentProjectId);
                     }
                 } else {
-                    alert("Erro ao excluir tarefa.");
+                    const errData = await res.json().catch(() => ({}));
+                    alert("Erro ao excluir tarefa: " + (errData.error || res.statusText));
                 }
             } catch(err) {
                 alert("Erro de conexão ao excluir tarefa.");
+            } finally {
+                btnDeleteQuickTask.disabled = false;
+                btnDeleteQuickTask.textContent = "🗑️ Excluir";
+                btnDeleteQuickTask.style.background = "rgba(239, 68, 68, 0.2)";
+                btnDeleteQuickTask.style.color = "#fca5a5";
             }
         });
     }
+
 
 
     socket.on('task_deleted', (data) => {

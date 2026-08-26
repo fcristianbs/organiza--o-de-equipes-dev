@@ -1,9 +1,16 @@
 import os
+import warnings
+import logging
 from dotenv import load_dotenv
 from google import genai
 
+# Silencia avisos informativos internos da biblioteca da Google
+warnings.filterwarnings("ignore", category=UserWarning)
+logging.getLogger("google.genai").setLevel(logging.ERROR)
+
 # Carrega variáveis do .env
 load_dotenv()
+
 
 def generate_task_markdown(task_title, blocks, additional_prompt=""):
     """
