@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from models import db, User, Project, Task, TaskBlock, Note, Attachment, Message, MeetingReport, TaskSectionComment
+from models import db, User, Project, Task, TaskBlock, Note, Attachment, Message, MeetingReport, TaskSectionComment, PushSubscription
+
 
 from ai_service import generate_task_markdown, reformulate_task_markdown
 
@@ -111,7 +112,13 @@ def before_request():
         app.db_initialized = True
 
 
+@app.route('/sw.js')
+def serve_sw():
+    from flask import send_from_directory
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
 @app.route('/login')
+
 def login_page():
     if get_current_user():
         return redirect('/')
@@ -327,6 +334,91 @@ def get_project(project_id):
     })
 
 
+def get_vapid_public_key_b64():
+    try:
+        from pywebpush import Vapid
+        import base64
+        pem_path = os.path.join(app.root_path, 'private_key.pem')
+        if not os.path.exists(pem_path):
+            return ""
+        v = Vapid.from_file(pem_path)
+        raw_pub = v.public_key.public_bytes(
+            encoding=__import__('cryptography.hazmat.primitives.serialization').hazmat.primitives.serialization.Encoding.X962,
+            format=__import__('cryptography.hazmat.primitives.serialization').hazmat.primitives.serialization.PublicFormat.UncompressedPoint
+        )
+        return base64.urlsafe_b64encode(raw_pub).decode().rstrip('=')
+    except Exception as e:
+        print("Erro ao obter chave VAPID publica:", str(e))
+        return ""
+
+def send_push_notification_to_all(title, body, url="/"):
+    try:
+        from pywebpush import webpush, WebPushException
+        import json
+        
+        subscriptions = PushSubscription.query.all()
+        if not subscriptions:
+            return
+            
+        payload = json.dumps({
+            "title": title,
+            "body": body,
+            "url": url
+        })
+        
+        pem_path = os.path.join(app.root_path, 'private_key.pem')
+        
+        for sub in subscriptions:
+            try:
+                sub_info = json.loads(sub.subscription_json)
+                webpush(
+                    subscription_info=sub_info,
+                    data=payload,
+                    vapid_private_key=pem_path,
+                    vapid_claims={"sub": "mailto:suporte@cosampa.com.br"}
+                )
+            except WebPushException as ex:
+                print("Aviso WebPush:", ex)
+                if ex.response is not None and ex.response.status_code in [404, 410]:
+                    db.session.delete(sub)
+                    db.session.commit()
+            except Exception as err:
+                print("Erro envio WebPush individual:", str(err))
+    except Exception as e:
+        print("Erro geral no WebPush:", str(e))
+
+@app.route('/api/vapid-public-key', methods=['GET'])
+def get_vapid_key_route():
+    return jsonify({'public_key': get_vapid_public_key_b64()})
+
+@app.route('/api/push-subscriptions', methods=['POST'])
+def save_push_subscription():
+    import json
+    data = request.json or {}
+    endpoint = data.get('endpoint', '').strip()
+    if not endpoint:
+        return jsonify({'error': 'Endpoint inválido'}), 400
+        
+    sub_json = json.dumps(data)
+    user = get_current_user()
+    
+    existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    if existing:
+        existing.subscription_json = sub_json
+        if user:
+            existing.user_id = user.id
+    else:
+        new_sub = PushSubscription(
+            endpoint=endpoint,
+            subscription_json=sub_json,
+            user_id=user.id if user else None
+        )
+        db.session.add(new_sub)
+        
+    db.session.commit()
+    return jsonify({'message': 'Push subscription salva com sucesso'}), 201
+
+
 @app.route('/api/users', methods=['GET'])
 def get_users():
     users = User.query.all()
@@ -369,7 +461,36 @@ def create_task(project_id):
         db.session.add(block)
         db.session.commit()
 
+    # Emitir evento Socket.IO em tempo real para os navegadores abertos
+    try:
+        socketio.emit('task_created', {
+            'task_id': task.id,
+            'title': task.title,
+            'project_id': project_id
+        }, room=f"project_{project_id}")
+        
+        # Emissão global para notificações da área de trabalho
+        socketio.emit('global_task_created', {
+            'task_id': task.id,
+            'title': task.title,
+            'project_id': project_id
+        })
+    except Exception as e:
+        print("Erro ao emitir socket task_created:", str(e))
+
+    # Disparar Web Push Notification para todos os inscritos (mesmo com navegador/aba fechados!)
+    try:
+        send_push_notification_to_all(
+            title="📌 Nova Tarefa Criada!",
+            body=f"A tarefa '{task.title}' foi adicionada.",
+            url=f"/task/{task.id}"
+        )
+    except Exception as e:
+        print("Erro ao disparar WebPush na criacao de tarefa:", str(e))
+
     return jsonify({'id': task.id, 'title': task.title, 'status': task.status}), 201
+
+
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task(task_id):

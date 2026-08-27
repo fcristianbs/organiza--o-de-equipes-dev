@@ -107,3 +107,12 @@ class TaskSectionComment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class PushSubscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    endpoint = db.Column(db.Text, nullable=False)
+    subscription_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+

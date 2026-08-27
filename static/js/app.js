@@ -358,11 +358,30 @@ document.addEventListener('DOMContentLoaded', () => {
         appendChatMessage(data, currentUserId);
     });
 
+    socket.on('global_task_created', (data) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                const notif = new Notification("📌 Nova Tarefa Criada!", {
+                    body: `A tarefa "${data.title}" foi adicionada.`,
+                    icon: "/static/img/icon.png",
+                    tag: `task-${data.task_id}`
+                });
+                notif.onclick = () => {
+                    window.focus();
+                    window.open(`/task/${data.task_id}`, '_blank');
+                };
+            } catch(e) {
+                console.error("Erro ao disparar notificação de tarefa criada:", e);
+            }
+        }
+    });
+
     socket.on('task_updated', (data) => {
         if (currentProjectId) {
             openProject(currentProjectId);
         }
     });
+
 
     socket.on('task_phase_updated', (data) => {
         const card = document.querySelector(`.kanban-card[data-task-id="${data.task_id}"]`);

@@ -88,7 +88,11 @@
                 <div style="display: flex; gap: 1rem; align-items: center;">
                     <h1 id="current-view-title">Visão Global</h1>
                     <button class="btn-primary hidden" id="btn-new-task">+ Nova Tarefa</button>
+                    <button class="btn-secondary" id="btn-enable-push-notifications" onclick="enableWebPushNotifications()" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display: flex; align-items: center; gap: 0.4rem; border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc;">
+                        🔔 Ativar Notificações no Desktop
+                    </button>
                 </div>
+
                 <div class="view-toggles hidden" id="project-toggles">
                     <button class="tab-btn active" data-view="kanban">Kanban</button>
                     <button class="tab-btn" data-view="report">Atas / Relatório</button>
@@ -275,5 +279,136 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        async function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    await navigator.serviceWorker.register('/sw.js');
+                    const reg = await navigator.serviceWorker.ready;
+                    return reg;
+                } catch (err) {
+                    console.error('Falha ao registrar Service Worker:', err);
+                }
+            }
+            return null;
+        }
+
+        window.enableWebPushNotifications = async function() {
+            const btn = document.getElementById('btn-enable-push-notifications');
+
+            if (!('Notification' in window)) {
+                alert('Seu navegador não suporta notificações de área de trabalho.');
+                return;
+            }
+
+            // Se o usuário já tiver bloqueado anteriormente, o navegador não abre o popup nativo automaticamente.
+            if (Notification.permission === 'denied') {
+                alert('As notificações estão BLOQUEADAS no seu navegador para este site.\n\nPara ativar:\n1. Clique no ícone de cadeado 🔒 ao lado da URL (no topo do navegador).\n2. Altere "Notificações" de Bloqueado para "Permitir".\n3. Recarregue a página.');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '🔒 Notificações Bloqueadas no Navegador';
+                    btn.style.color = '#ef4444';
+                    btn.style.borderColor = '#ef4444';
+                }
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Ativando...';
+            }
+
+            try {
+                // Solicitar permissão nativa
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Permissão de notificação negada pelo usuário.');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '🔔 Permissão Negada';
+                        btn.style.color = '#ef4444';
+                    }
+                    return;
+                }
+
+                // Tentar registrar Service Worker e WebPush
+                const reg = await registerServiceWorker();
+
+                if (reg && 'pushManager' in reg) {
+                    try {
+                        const existingSub = await reg.pushManager.getSubscription();
+                        if (existingSub) {
+                            await existingSub.unsubscribe();
+                        }
+
+                        const resKey = await fetch('/api/vapid-public-key');
+                        const keyData = await resKey.json();
+                        if (keyData.public_key) {
+                            const convertedVapidKey = urlBase64ToUint8Array(keyData.public_key);
+                            const subscription = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: convertedVapidKey
+                            });
+
+                            await fetch('/api/push-subscriptions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(subscription)
+                            });
+                        }
+                    } catch(pushErr) {
+                        console.warn("Inscrição de Push Service em nuvem ignorada (usando Notificações Locais do OS):", pushErr);
+                    }
+                }
+
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '🔔 Notificações Ativadas ✓';
+                    btn.style.color = '#10b981';
+                    btn.style.borderColor = '#10b981';
+                }
+
+                // Disparar uma notificação de teste imediata na Área de Trabalho para confirmar o funcionamento!
+                try {
+                    const testNotif = new Notification("📌 Notificações Ativadas!", {
+                        body: "Você receberá notificações na Área de Trabalho quando novas tarefas forem criadas.",
+                        icon: "/static/img/icon.png"
+                    });
+                    testNotif.onclick = () => window.focus();
+                } catch(e) {
+                    console.log("Erro ao exibir notificação de teste local:", e);
+                }
+
+            } catch (err) {
+                console.error('Erro ao ativar notificações:', err);
+                alert('Erro ao ativar notificações: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '🔔 Ativar Notificações no Desktop';
+                }
+            }
+        };
+
+        // Registrar SW ao carregar a página
+        registerServiceWorker();
+
+
+    </script>
 </body>
 </html>
+
