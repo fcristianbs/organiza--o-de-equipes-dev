@@ -123,20 +123,36 @@
 
         
         <!-- Seção de IA e Blocos -->
-        <div class="ai-section glass-panel">
-            <div class="blocks-panel">
-                <h3>Blocos de Informação</h3>
+        <div class="ai-sect            <div class="blocks-panel">
+                <h3>Blocos de Informação <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(Arraste ⠿ para priorizar)</span></h3>
                 <div class="blocks-list" id="blocks-list">
                     {% for block in blocks %}
-                    <div class="block-item" data-block-id="{{ block.id }}">
+                    <div class="block-item" data-block-id="{{ block.id }}" draggable="true">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
-                            <div style="flex: 1;">
-                                {% if block.block_type and block.block_type not in ['Informação', 'Bloco'] %}
-                                <span style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">{{ block.block_type }}</span>
-                                {% endif %}
-                                <p style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">{{ block.content }}</p>
+                            <div style="display: flex; align-items: flex-start; gap: 0.5rem; flex: 1;">
+                                <span class="drag-handle" title="Arraste para priorizar" style="cursor: grab; color: var(--text-muted); font-size: 1.1rem; user-select: none; padding-top: 2px;">⠿</span>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
+                                        <span class="priority-badge" style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 2px 6px; border-radius: 10px; font-weight: 700;">#{{ loop.index }} Prioridade</span>
+                                        {% if block.block_type and block.block_type not in ['Informação', 'Bloco'] %}
+                                        <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">{{ block.block_type }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="block-display-content" style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">{{ block.content }}</p>
+                                    
+                                    <div class="block-edit-form" style="display: none; margin-top: 0.5rem;">
+                                        <textarea class="block-edit-textarea" style="width: 100%; font-size: 0.85rem; padding: 0.4rem; background: rgba(0,0,0,0.3); border: 1px solid var(--primary); color: white; border-radius: 6px; resize: vertical; min-height: 60px;">{{ block.content }}</textarea>
+                                        <div style="display: flex; gap: 0.4rem; margin-top: 0.3rem;">
+                                            <button type="button" class="btn-primary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="saveEditBlock({{ block.id }}, this)">Salvar</button>
+                                            <button type="button" class="btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="cancelEditBlock({{ block.id }}, this)">Cancelar</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <button class="btn-delete-block" onclick="deleteBlock({{ block.id }}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">🗑️</button>
+                            <div style="display: flex; align-items: center; gap: 0.2rem;">
+                                <button type="button" onclick="toggleEditBlock({{ block.id }}, this)" title="Editar bloco" style="background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">✏️</button>
+                                <button type="button" class="btn-delete-block" onclick="deleteBlock({{ block.id }}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 5px; border-radius: 4px; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">🗑️</button>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -151,7 +167,7 @@
             <div class="ai-generator">
                 <h3>✨ Gerador de Markdown</h3>
                 <p style="font-size: 0.85rem; color: var(--text-muted);">
-                    Use a IA do Gemini para compilar todos os blocos ao lado em um documento limpo e estruturado.
+                    Use a IA do Gemini para compilar de forma incremental a pilha de blocos ao lado em um documento limpo e estruturado.
                 </p>
                 <textarea id="ai-prompt" placeholder="Prompt específico (Opcional). Ex: Dê ênfase nas regras de negócio e crie uma checklist técnica." style="flex: 1; padding: 0.5rem; border-radius: 6px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color);"></textarea>
                 <button type="button" id="btn-generate-ai" class="ai-btn" onclick="generateAI()">Gerar Markdown com IA</button>
@@ -162,6 +178,22 @@
             <h3>✨ Documentação / Markdown Gerado por IA</h3>
             <div id="task-description-content" style="margin-top: 1rem;">
                 <!-- Content will be rendered here by marked.js -->
+            </div>
+
+            <!-- Caixa de Comentários para Reformulação por IA -->
+            <div class="markdown-comment-section" style="margin-top: 1.5rem; padding: 1rem; background: rgba(0, 0, 0, 0.25); border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.3);">
+                <h4 style="font-size: 0.95rem; color: #a5b4fc; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                    💬 Comentar ou Solicitar Alteração na Documentação
+                </h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem;">
+                    Escreva o que você gostaria de reescrever ou ajustar na documentação acima. A IA reformulará o texto aplicando o seu feedback.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <textarea id="ai-comment-input" placeholder="Ex: Adicione uma tabela com os códigos de erro e inclua um tópico sobre requisitos não funcionais..." style="width: 100%; font-size: 0.85rem; padding: 0.6rem; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 6px; min-height: 75px; resize: vertical;"></textarea>
+                    <button type="button" id="btn-reformulate-ai" onclick="reformulateAI()" class="btn-primary" style="align-self: flex-end; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none; padding: 0.5rem 1.2rem; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                        ✨ Reformular Documentação com IA
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -206,13 +238,186 @@
         };
 
         const descContainer = document.getElementById('task-description-content');
-        if (descContainer) {
-            if (generatedMarkdown && generatedMarkdown.trim() !== '') {
-                descContainer.innerHTML = safeRenderMarkdown(generatedMarkdown);
+        let taskSectionComments = [];
+
+        async function loadTaskSectionComments() {
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/comments`);
+                if (res.ok) {
+                    taskSectionComments = await res.json();
+                }
+            } catch(err) {
+                console.error("Erro ao carregar comentários dos tópicos:", err);
+            }
+        }
+
+        async function renderTaskMarkdown(markdownText) {
+            if (!descContainer) return;
+            if (markdownText && markdownText.trim() !== '') {
+                descContainer.innerHTML = safeRenderMarkdown(markdownText);
+                await loadTaskSectionComments();
+                attachTopicCommentButtons();
             } else {
                 descContainer.innerHTML = '<p style="color: var(--text-muted);">Nenhum Markdown gerado ainda. Adicione blocos ao lado e clique em "Gerar Markdown com IA"!</p>';
             }
         }
+
+        function attachTopicCommentButtons() {
+            if (!descContainer) return;
+
+            const topicSelectors = 'h1, h2, h3, h4, h5, ol > li, p > strong, li > strong';
+            const elements = descContainer.querySelectorAll(topicSelectors);
+
+            elements.forEach((el) => {
+                if (el.querySelector('.btn-topic-comment-trigger')) return;
+
+                let rawText = el.textContent.replace(/💬.*$/, '').trim();
+                if (!rawText || rawText.length < 2) return;
+
+                const topicComments = taskSectionComments.filter(c => c.topic_title === rawText);
+                const commentCount = topicComments.length;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-topic-comment-trigger';
+                btn.style.cssText = `
+                    margin-left: 0.5rem;
+                    font-size: 0.75rem;
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    border: 1px solid ${commentCount > 0 ? '#6366f1' : 'rgba(255,255,255,0.2)'};
+                    background: ${commentCount > 0 ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)'};
+                    color: ${commentCount > 0 ? '#a5b4fc' : 'var(--text-muted)'};
+                    cursor: pointer;
+                    font-weight: 500;
+                    vertical-align: middle;
+                    transition: all 0.2s;
+                `;
+                btn.innerHTML = commentCount > 0 ? `💬 ${commentCount} comentário${commentCount > 1 ? 's' : ''}` : `💬 Comentar`;
+
+                const commentBox = document.createElement('div');
+                commentBox.className = 'topic-comment-box';
+                commentBox.style.cssText = `
+                    display: none;
+                    margin: 0.5rem 0 1rem 0;
+                    padding: 0.75rem;
+                    background: rgba(15, 23, 42, 0.95);
+                    border: 1px solid rgba(99, 102, 241, 0.4);
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+
+                function renderCommentBoxContent() {
+                    const currentComments = taskSectionComments.filter(c => c.topic_title === rawText);
+                    let commentsHtml = '';
+                    if (currentComments.length > 0) {
+                        commentsHtml = `
+                            <div style="margin-bottom: 0.6rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                                ${currentComments.map(c => `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.4rem 0.6rem; border-radius: 6px; border-left: 3px solid #6366f1;">
+                                        <span style="font-size: 0.85rem; color: #e2e8f0;">${escapeHtml(c.comment_text)}</span>
+                                        <button type="button" onclick="deleteTopicComment(${c.id}, this)" title="Remover comentário" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">🗑️</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+
+                    commentBox.innerHTML = `
+                        <div style="font-size: 0.8rem; font-weight: 600; color: #a5b4fc; margin-bottom: 0.4rem;">
+                            💬 Comentário para o tópico: <span style="color: #fff;">"${escapeHtml(rawText)}"</span>
+                        </div>
+                        ${commentsHtml}
+                        <div style="display: flex; gap: 0.4rem;">
+                            <input type="text" class="input-topic-comment-text" placeholder="Escreva a alteração ou observação para este tópico..." style="flex: 1; font-size: 0.82rem; padding: 0.4rem 0.6rem; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <button type="button" class="btn-save-topic-comment" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Salvar</button>
+                        </div>
+                    `;
+
+                    const btnSave = commentBox.querySelector('.btn-save-topic-comment');
+                    const inputField = commentBox.querySelector('.input-topic-comment-text');
+
+                    if (btnSave && inputField) {
+                        btnSave.onclick = async () => {
+                            const text = inputField.value.trim();
+                            if (!text) return alert("Digite o texto do comentário.");
+                            btnSave.disabled = true;
+                            btnSave.textContent = "Salvando...";
+                            try {
+                                const res = await fetch(`/api/tasks/${taskId}/comments`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ topic_title: rawText, comment_text: text })
+                                });
+                                if (res.ok) {
+                                    await loadTaskSectionComments();
+                                    renderCommentBoxContent();
+                                    const updatedCount = taskSectionComments.filter(c => c.topic_title === rawText).length;
+                                    btn.innerHTML = `💬 ${updatedCount} comentário${updatedCount > 1 ? 's' : ''}`;
+                                    btn.style.border = '1px solid #6366f1';
+                                    btn.style.background = 'rgba(99, 102, 241, 0.25)';
+                                    btn.style.color = '#a5b4fc';
+                                } else {
+                                    alert("Erro ao salvar comentário.");
+                                }
+                            } catch(err) {
+                                alert("Erro de conexão ao salvar comentário.");
+                            }
+                        };
+                    }
+                }
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const isVisible = commentBox.style.display === 'block';
+                    commentBox.style.display = isVisible ? 'none' : 'block';
+                    if (!isVisible) {
+                        renderCommentBoxContent();
+                    }
+                };
+
+                el.appendChild(btn);
+                el.after(commentBox);
+            });
+        }
+
+        window.deleteTopicComment = async function(commentId, btnEl) {
+            if (!confirm("Remover este comentário do tópico?")) return;
+            try {
+                const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await loadTaskSectionComments();
+                    const commentBox = btnEl.closest('.topic-comment-box');
+                    if (commentBox) {
+                        const prevEl = commentBox.previousElementSibling;
+                        if (prevEl) {
+                            const rawText = prevEl.textContent.replace(/💬.*$/, '').trim();
+                            const triggerBtn = prevEl.querySelector('.btn-topic-comment-trigger');
+                            const updatedCount = taskSectionComments.filter(c => c.topic_title === rawText).length;
+                            if (triggerBtn) {
+                                if (updatedCount > 0) {
+                                    triggerBtn.innerHTML = `💬 ${updatedCount} comentário${updatedCount > 1 ? 's' : ''}`;
+                                } else {
+                                    triggerBtn.innerHTML = `💬 Comentar`;
+                                    triggerBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+                                    triggerBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+                                    triggerBtn.style.color = 'var(--text-muted)';
+                                }
+                            }
+                        }
+                    }
+                    btnEl.closest('div').remove();
+                } else {
+                    alert("Erro ao remover comentário.");
+                }
+            } catch(err) {
+                alert("Erro de conexão ao remover comentário.");
+            }
+        };
+
+        // Renderizar inicial
+        renderTaskMarkdown(generatedMarkdown);
+
 
         const statusSelect = document.getElementById('task-status-select');
         function updateStatusSelectColor(el) {
@@ -342,9 +547,125 @@
             }
         };
 
+        // --- Block Priority Badges & Drag-and-Drop ---
+        function updateBlockPriorityBadges() {
+            const items = document.querySelectorAll('#blocks-list .block-item');
+            items.forEach((item, idx) => {
+                const badge = item.querySelector('.priority-badge');
+                if (badge) badge.textContent = `#${idx + 1} Prioridade`;
+            });
+        }
 
+        async function saveBlockReorder() {
+            const items = document.querySelectorAll('#blocks-list .block-item');
+            const blockIds = Array.from(items).map(item => parseInt(item.dataset.blockId));
+            if (!blockIds.length) return;
 
+            try {
+                await fetch(`/api/tasks/${taskId}/blocks/reorder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ block_ids: blockIds })
+                });
+            } catch(err) {
+                console.error("Erro ao salvar ordem dos blocos:", err);
+            }
+        }
 
+        function initDragAndDrop() {
+            const list = document.getElementById('blocks-list');
+            if (!list) return;
+
+            let draggedItem = null;
+
+            list.addEventListener('dragstart', (e) => {
+                const item = e.target.closest('.block-item');
+                if (!item) return;
+                draggedItem = item;
+                item.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const targetItem = e.target.closest('.block-item');
+                if (targetItem && targetItem !== draggedItem) {
+                    const bounding = targetItem.getBoundingClientRect();
+                    const offset = bounding.y + (bounding.height / 2);
+                    if (e.clientY - offset > 0) {
+                        targetItem.after(draggedItem);
+                    } else {
+                        targetItem.before(draggedItem);
+                    }
+                    updateBlockPriorityBadges();
+                }
+            });
+
+            list.addEventListener('dragend', (e) => {
+                const item = e.target.closest('.block-item');
+                if (item) item.style.opacity = '1';
+                draggedItem = null;
+                updateBlockPriorityBadges();
+                saveBlockReorder();
+            });
+        }
+
+        // --- Block Inline Edit ---
+        window.toggleEditBlock = function(blockId, btn) {
+            const item = btn.closest('.block-item');
+            if (!item) return;
+            const displayP = item.querySelector('.block-display-content');
+            const editForm = item.querySelector('.block-edit-form');
+            if (displayP && editForm) {
+                displayP.style.display = 'none';
+                editForm.style.display = 'block';
+            }
+        };
+
+        window.cancelEditBlock = function(blockId, btn) {
+            const item = btn.closest('.block-item');
+            if (!item) return;
+            const displayP = item.querySelector('.block-display-content');
+            const editForm = item.querySelector('.block-edit-form');
+            if (displayP && editForm) {
+                displayP.style.display = 'block';
+                editForm.style.display = 'none';
+            }
+        };
+
+        window.saveEditBlock = async function(blockId, btn) {
+            const item = btn.closest('.block-item');
+            if (!item) return;
+            const textarea = item.querySelector('.block-edit-textarea');
+            if (!textarea) return;
+            const newContent = textarea.value.trim();
+            if (!newContent) return alert("O conteúdo do bloco não pode ser vazio.");
+
+            btn.disabled = true;
+            btn.textContent = "Salvando...";
+
+            try {
+                const res = await fetch(`/api/blocks/${blockId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: newContent })
+                });
+
+                if (res.ok) {
+                    const displayP = item.querySelector('.block-display-content');
+                    if (displayP) displayP.textContent = newContent;
+                    cancelEditBlock(blockId, btn);
+                } else {
+                    alert("Erro ao editar bloco.");
+                }
+            } catch(err) {
+                alert("Erro de conexão ao salvar edição.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Salvar";
+            }
+        };
 
         window.deleteBlock = async function(blockId, element) {
             if (!confirm("Remover este bloco de informação?")) return;
@@ -354,6 +675,8 @@
                 if (res.ok) {
                     const blockItem = element.closest('.block-item');
                     if (blockItem) blockItem.remove();
+                    updateBlockPriorityBadges();
+                    saveBlockReorder();
                 } else {
                     alert("Erro ao remover o bloco.");
                 }
@@ -388,16 +711,37 @@
                         const div = document.createElement('div');
                         div.className = 'block-item';
                         div.dataset.blockId = data.id;
+                        div.draggable = true;
                         div.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
-                                <div style="flex: 1;">
-                                    <p style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">${escapeHtml(data.content)}</p>
+                                <div style="display: flex; align-items: flex-start; gap: 0.5rem; flex: 1;">
+                                    <span class="drag-handle" title="Arraste para priorizar" style="cursor: grab; color: var(--text-muted); font-size: 1.1rem; user-select: none; padding-top: 2px;">⠿</span>
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
+                                            <span class="priority-badge" style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 2px 6px; border-radius: 10px; font-weight: 700;">#Prioridade</span>
+                                            <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">${escapeHtml(data.type || 'Informação')}</span>
+                                        </div>
+                                        <p class="block-display-content" style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">${escapeHtml(data.content)}</p>
+                                        
+                                        <div class="block-edit-form" style="display: none; margin-top: 0.5rem;">
+                                            <textarea class="block-edit-textarea" style="width: 100%; font-size: 0.85rem; padding: 0.4rem; background: rgba(0,0,0,0.3); border: 1px solid var(--primary); color: white; border-radius: 6px; resize: vertical; min-height: 60px;">${escapeHtml(data.content)}</textarea>
+                                            <div style="display: flex; gap: 0.4rem; margin-top: 0.3rem;">
+                                                <button type="button" class="btn-primary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="saveEditBlock(${data.id}, this)">Salvar</button>
+                                                <button type="button" class="btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="cancelEditBlock(${data.id}, this)">Cancelar</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn-delete-block" onclick="deleteBlock(${data.id}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">🗑️</button>
+                                <div style="display: flex; align-items: center; gap: 0.2rem;">
+                                    <button type="button" onclick="toggleEditBlock(${data.id}, this)" title="Editar bloco" style="background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">✏️</button>
+                                    <button type="button" class="btn-delete-block" onclick="deleteBlock(${data.id}, this)" title="Remover bloco" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 2px 5px; border-radius: 4px; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">🗑️</button>
+                                </div>
                             </div>
                         `;
                         list.appendChild(div);
                         list.scrollTop = list.scrollHeight;
+                        updateBlockPriorityBadges();
+                        saveBlockReorder();
                     }
                     blockInput.value = '';
                 } else {
@@ -433,9 +777,7 @@
 
                 const data = await res.json();
                 if (res.ok) {
-                    if (descContainer) {
-                        descContainer.innerHTML = safeRenderMarkdown(data.markdown);
-                    }
+                    await renderTaskMarkdown(data.markdown);
                     alert("Markdown gerado com sucesso!");
                 } else {
                     alert("Erro: " + (data.error || 'Erro desconhecido na geração do Markdown.'));
@@ -449,8 +791,49 @@
                 }
             }
         };
-    </script>
 
+        window.reformulateAI = async function() {
+            const commentInput = document.getElementById('ai-comment-input');
+            const comment = commentInput ? commentInput.value.trim() : '';
+            if (!comment) return alert("Por favor, digite o seu comentário ou alteração desejada.");
+
+            const btn = document.getElementById('btn-reformulate-ai');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Reformulando com IA... (Aguarde)';
+            }
+
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/reformulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: comment })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    await renderTaskMarkdown(data.markdown);
+                    commentInput.value = '';
+
+                    alert("Documentação reformulada com sucesso com base no seu comentário!");
+                } else {
+                    alert("Erro ao reformular: " + (data.error || 'Erro desconhecido.'));
+                }
+            } catch (err) {
+                alert("Erro de conexão ao reformular documentação: " + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '✨ Reformular Documentação com IA';
+                }
+            }
+        };
+
+        // Inicializar Drag and Drop e Badges na abertura da página
+        initDragAndDrop();
+        updateBlockPriorityBadges();
+    </script>
 </body>
 </html>
+
 

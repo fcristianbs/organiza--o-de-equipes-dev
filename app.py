@@ -5,8 +5,10 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from models import db, User, Project, Task, TaskBlock, Note, Attachment, Message, MeetingReport
-from ai_service import generate_task_markdown
+from models import db, User, Project, Task, TaskBlock, Note, Attachment, Message, MeetingReport, TaskSectionComment
+
+from ai_service import generate_task_markdown, reformulate_task_markdown
+
 
 load_dotenv()
 
@@ -87,12 +89,27 @@ def ensure_master_user():
         master.is_active = True
         db.session.commit()
 
+def ensure_schema_updates():
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('task_block')]
+        if 'position' not in columns:
+            print("Adicionando coluna 'position' na tabela 'task_block'...")
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE task_block ADD COLUMN position INT NOT NULL DEFAULT 0"))
+                conn.commit()
+    except Exception as e:
+        print("Aviso ao verificar/atualizar schema:", str(e))
+
 @app.before_request
 def before_request():
     if not hasattr(app, 'db_initialized'):
         db.create_all()
         ensure_master_user()
+        ensure_schema_updates()
         app.db_initialized = True
+
 
 @app.route('/login')
 def login_page():
@@ -247,8 +264,10 @@ def task_page(task_id):
     if not user:
         return redirect('/login')
     task = Task.query.get_or_404(task_id)
-    blocks = TaskBlock.query.filter_by(task_id=task.id).all()
+    blocks = TaskBlock.query.filter_by(task_id=task.id).order_by(TaskBlock.position.asc(), TaskBlock.id.asc()).all()
     return render_template('task_page.html', task=task, blocks=blocks, current_user=user)
+
+
 
 
 @app.route('/api/projects/<int:project_id>')
@@ -434,14 +453,28 @@ def add_task_block(task_id):
     if not content:
         return jsonify({'error': 'Conteúdo do bloco é obrigatório'}), 400
         
+    max_pos = db.session.query(db.func.max(TaskBlock.position)).filter_by(task_id=task.id).scalar() or 0
+
     block = TaskBlock(
         task_id=task.id,
         block_type=block_type,
-        content=content
+        content=content,
+        position=max_pos + 1
     )
     db.session.add(block)
     db.session.commit()
-    return jsonify({'id': block.id, 'type': block.block_type, 'content': block.content}), 201
+    return jsonify({'id': block.id, 'type': block.block_type, 'content': block.content, 'position': block.position}), 201
+
+@app.route('/api/blocks/<int:block_id>', methods=['PUT'])
+def edit_task_block(block_id):
+    block = TaskBlock.query.get_or_404(block_id)
+    data = request.json or {}
+    if 'content' in data:
+        block.content = data['content'].strip()
+    if 'type' in data:
+        block.block_type = data['type'].strip()
+    db.session.commit()
+    return jsonify({'id': block.id, 'type': block.block_type, 'content': block.content, 'position': block.position})
 
 @app.route('/api/blocks/<int:block_id>', methods=['DELETE'])
 def delete_task_block(block_id):
@@ -450,25 +483,111 @@ def delete_task_block(block_id):
     db.session.commit()
     return jsonify({'message': 'Bloco removido com sucesso'})
 
+@app.route('/api/tasks/<int:task_id>/blocks/reorder', methods=['POST'])
+def reorder_task_blocks(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json or {}
+    order_ids = data.get('block_ids', [])
+    
+    for idx, block_id in enumerate(order_ids, start=1):
+        TaskBlock.query.filter_by(id=block_id, task_id=task.id).update({'position': idx})
+    
+    db.session.commit()
+    return jsonify({'message': 'Ordem dos blocos atualizada com sucesso'})
+
+
+@app.route('/api/tasks/<int:task_id>/comments', methods=['GET'])
+def get_task_section_comments(task_id):
+    task = Task.query.get_or_404(task_id)
+    comments = TaskSectionComment.query.filter_by(task_id=task.id).order_by(TaskSectionComment.created_at.asc()).all()
+    return jsonify([{
+        'id': c.id,
+        'topic_title': c.topic_title,
+        'comment_text': c.comment_text,
+        'created_at': c.created_at.isoformat()
+    } for c in comments])
+
+@app.route('/api/tasks/<int:task_id>/comments', methods=['POST'])
+def add_task_section_comment(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json or {}
+    topic_title = data.get('topic_title', '').strip()
+    comment_text = data.get('comment_text', '').strip()
+    if not topic_title or not comment_text:
+        return jsonify({'error': 'Tópico e comentário são obrigatórios'}), 400
+
+    comment = TaskSectionComment(
+        task_id=task.id,
+        topic_title=topic_title,
+        comment_text=comment_text
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({
+        'id': comment.id,
+        'topic_title': comment.topic_title,
+        'comment_text': comment.comment_text,
+        'created_at': comment.created_at.isoformat()
+    }), 201
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_task_section_comment(comment_id):
+    comment = TaskSectionComment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    return jsonify({'message': 'Comentário removido com sucesso'})
+
 
 @app.route('/api/tasks/<int:task_id>/generate', methods=['POST'])
 def generate_markdown(task_id):
     task = Task.query.get_or_404(task_id)
-    blocks = TaskBlock.query.filter_by(task_id=task.id).all()
+    blocks = TaskBlock.query.filter_by(task_id=task.id).order_by(TaskBlock.position.asc(), TaskBlock.id.asc()).all()
     
-    blocks_data = [{'type': b.block_type, 'content': b.content} for b in blocks]
+    blocks_data = [{'type': b.block_type, 'content': b.content, 'position': b.position} for b in blocks]
     
+    comments = TaskSectionComment.query.filter_by(task_id=task.id).all()
+    topic_comments = [{'topic_title': c.topic_title, 'comment_text': c.comment_text} for c in comments]
+
     data = request.json or {}
     additional_prompt = data.get('prompt', '')
     
     try:
-        new_markdown = generate_task_markdown(task.title, blocks_data, additional_prompt)
+        new_markdown = generate_task_markdown(
+            task_title=task.title,
+            blocks=blocks_data,
+            additional_prompt=additional_prompt,
+            existing_markdown=task.generated_markdown or "",
+            topic_comments=topic_comments
+        )
         task.generated_markdown = new_markdown
         db.session.commit()
         return jsonify({'message': 'Success', 'markdown': new_markdown})
     except Exception as e:
         print("Erro Gemini:", str(e))
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tasks/<int:task_id>/reformulate', methods=['POST'])
+def reformulate_markdown(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json or {}
+    comment = data.get('comment', '').strip()
+    if not comment:
+        return jsonify({'error': 'Comentário é obrigatório'}), 400
+
+    try:
+        new_markdown = reformulate_task_markdown(
+            task_title=task.title,
+            current_markdown=task.generated_markdown or "",
+            comment=comment
+        )
+        task.generated_markdown = new_markdown
+        db.session.commit()
+        return jsonify({'message': 'Success', 'markdown': new_markdown})
+    except Exception as e:
+        print("Erro Gemini na reformulação:", str(e))
+        return jsonify({'error': str(e)}), 500
+
 
 
 

@@ -57,7 +57,9 @@ class TaskBlock(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
     block_type = db.Column(db.String(50), nullable=False) # Ex: Regra, Requisito, Obs
     content = db.Column(db.Text, nullable=False)
+    position = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class MeetingReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -95,4 +97,13 @@ class Message(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     user = db.relationship('User', backref='messages', lazy=True)
+
+
+class TaskSectionComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    topic_title = db.Column(db.String(255), nullable=False)
+    comment_text = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
