@@ -334,21 +334,43 @@ def get_project(project_id):
     })
 
 
+def get_vapid_object():
+    """Retorna a instância Vapid carregada de variáveis de ambiente ou arquivo PEM."""
+    priv_env = os.getenv("VAPID_PRIVATE_KEY")
+    if priv_env and priv_env.strip():
+        try:
+            from pywebpush import Vapid
+            priv_clean = priv_env.replace('\\n', '\n')
+            return Vapid.from_pem(priv_clean.encode())
+        except Exception as e:
+            print("Erro ao carregar VAPID_PRIVATE_KEY do .env:", str(e))
+            
+    pem_path = os.path.join(app.root_path, 'private_key.pem')
+    if os.path.exists(pem_path):
+        try:
+            from pywebpush import Vapid
+            return Vapid.from_file(pem_path)
+        except Exception as e:
+            print("Erro ao carregar private_key.pem:", str(e))
+    return None
+
 def get_vapid_public_key_b64():
+    pub_env = os.getenv("VAPID_PUBLIC_KEY")
+    if pub_env and pub_env.strip():
+        return pub_env.strip()
+
+    v = get_vapid_object()
+    if not v:
+        return ""
     try:
-        from pywebpush import Vapid
         import base64
-        pem_path = os.path.join(app.root_path, 'private_key.pem')
-        if not os.path.exists(pem_path):
-            return ""
-        v = Vapid.from_file(pem_path)
         raw_pub = v.public_key.public_bytes(
             encoding=__import__('cryptography.hazmat.primitives.serialization').hazmat.primitives.serialization.Encoding.X962,
             format=__import__('cryptography.hazmat.primitives.serialization').hazmat.primitives.serialization.PublicFormat.UncompressedPoint
         )
         return base64.urlsafe_b64encode(raw_pub).decode().rstrip('=')
     except Exception as e:
-        print("Erro ao obter chave VAPID publica:", str(e))
+        print("Erro ao formatar chave VAPID publica:", str(e))
         return ""
 
 def send_push_notification_to_all(title, body, url="/"):
@@ -366,15 +388,18 @@ def send_push_notification_to_all(title, body, url="/"):
             "url": url
         })
         
-        pem_path = os.path.join(app.root_path, 'private_key.pem')
-        
+        vapid_obj = get_vapid_object()
+        if not vapid_obj:
+            print("Aviso: Nenhuma chave VAPID encontrada para envio de WebPush.")
+            return
+
         for sub in subscriptions:
             try:
                 sub_info = json.loads(sub.subscription_json)
                 webpush(
                     subscription_info=sub_info,
                     data=payload,
-                    vapid_private_key=pem_path,
+                    vapid_private_key=vapid_obj,
                     vapid_claims={"sub": "mailto:suporte@cosampa.com.br"}
                 )
             except WebPushException as ex:
@@ -386,6 +411,7 @@ def send_push_notification_to_all(title, body, url="/"):
                 print("Erro envio WebPush individual:", str(err))
     except Exception as e:
         print("Erro geral no WebPush:", str(e))
+
 
 @app.route('/api/vapid-public-key', methods=['GET'])
 def get_vapid_key_route():
