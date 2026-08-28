@@ -738,7 +738,18 @@ def reformulate_markdown(task_id):
 
 
 
+@app.route('/api/tasks/<int:task_id>/markdown', methods=['PUT'])
+def update_task_markdown(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json or {}
+    markdown_content = data.get('markdown', '')
+    task.generated_markdown = markdown_content
+    db.session.commit()
+    return jsonify({'message': 'Markdown da tarefa atualizado com sucesso', 'markdown': task.generated_markdown})
+
+
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
     project_id = task.project_id

@@ -124,7 +124,7 @@
         
         <!-- Seção de IA e Blocos -->
         <div class="ai-sect            <div class="blocks-panel">
-                <h3>Blocos de Informação <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(Arraste ⠿ para priorizar)</span></h3>
+                <h3>Blocos de Informação <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(Digite a prioridade ou arraste ⠿)</span></h3>
                 <div class="blocks-list" id="blocks-list">
                     {% for block in blocks %}
                     <div class="block-item" data-block-id="{{ block.id }}" draggable="true">
@@ -132,12 +132,25 @@
                             <div style="display: flex; align-items: flex-start; gap: 0.5rem; flex: 1;">
                                 <span class="drag-handle" title="Arraste para priorizar" style="cursor: grab; color: var(--text-muted); font-size: 1.1rem; user-select: none; padding-top: 2px;">⠿</span>
                                 <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
-                                        <span class="priority-badge" style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 2px 6px; border-radius: 10px; font-weight: 700;">#{{ loop.index }} Prioridade</span>
+                                    <div style="display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem;">
+                                        <span style="font-size: 0.75rem; color: #a5b4fc; font-weight: 700;">#</span>
+                                        <input type="number" 
+                                               class="priority-input" 
+                                               value="{{ loop.index }}" 
+                                               min="1" 
+                                               max="{{ blocks|length }}" 
+                                               title="Digite o número para alterar a prioridade"
+                                               onchange="changeBlockPriority(this)"
+                                               onkeydown="if(event.key === 'Enter') this.blur();"
+                                               style="width: 44px; font-size: 0.75rem; font-weight: 700; background: rgba(99, 102, 241, 0.25); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.5); border-radius: 6px; padding: 1px 4px; text-align: center; outline: none; transition: border 0.2s;"
+                                               onfocus="this.style.borderColor='#818cf8'; this.select();"
+                                               onblur="this.style.borderColor='rgba(99, 102, 241, 0.5)';" />
+                                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Prioridade</span>
                                         {% if block.block_type and block.block_type not in ['Informação', 'Bloco'] %}
-                                        <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">{{ block.block_type }}</span>
+                                        <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase; margin-left: 0.3rem;">{{ block.block_type }}</span>
                                         {% endif %}
                                     </div>
+
                                     <p class="block-display-content" style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">{{ block.content }}</p>
                                     
                                     <div class="block-edit-form" style="display: none; margin-top: 0.5rem;">
@@ -175,10 +188,22 @@
         </div>
 
         <div class="task-body glass-panel">
-            <h3>✨ Documentação / Markdown Gerado por IA</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 style="margin: 0;">✨ Documentação / Markdown Gerado por IA</h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" onclick="downloadTaskMarkdown()" class="btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.7rem; display: flex; align-items: center; gap: 0.3rem; border-color: rgba(16,185,129,0.4); color: #6ee7b7;">
+                        📥 Baixar .md
+                    </button>
+                    <button type="button" onclick="document.getElementById('upload-markdown-file-input').click()" class="btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.7rem; display: flex; align-items: center; gap: 0.3rem; border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc;">
+                        📤 Importar .md
+                    </button>
+                    <input type="file" id="upload-markdown-file-input" accept=".md,.txt" style="display: none;" onchange="uploadTaskMarkdownFile(this)">
+                </div>
+            </div>
             <div id="task-description-content" style="margin-top: 1rem;">
                 <!-- Content will be rendered here by marked.js -->
             </div>
+
 
             <!-- Caixa de Comentários para Reformulação por IA -->
             <div class="markdown-comment-section" style="margin-top: 1.5rem; padding: 1rem; background: rgba(0, 0, 0, 0.25); border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.3);">
@@ -209,7 +234,62 @@
 
     <script>
         const taskId = {{ task.id }};
-        const generatedMarkdown = {{ (task.generated_markdown or '') | tojson }};
+        window.generatedMarkdown = {{ (task.generated_markdown or '') | tojson }};
+
+        window.downloadTaskMarkdown = function() {
+            const currentMd = window.generatedMarkdown || '';
+            if (!currentMd || !currentMd.trim()) {
+                return alert("Não há documentação gerada para baixar.");
+            }
+            const taskTitle = {{ task.title | tojson }} || 'Tarefa';
+            const cleanTitle = taskTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const filename = `Tarefa_${taskId}_${cleanTitle}.md`;
+            const blob = new Blob([currentMd], { type: 'text/markdown;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        };
+
+        window.uploadTaskMarkdownFile = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                if (!content || !content.trim()) {
+                    alert("O arquivo selecionado está vazio.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/tasks/${taskId}/markdown`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ markdown: content })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        window.generatedMarkdown = data.markdown;
+                        await renderTaskMarkdown(data.markdown);
+                        alert("Documentação importada e salva com sucesso!");
+                    } else {
+                        alert("Erro ao salvar documentação no servidor.");
+                    }
+                } catch(err) {
+                    alert("Erro de conexão ao importar arquivo: " + err.message);
+                } finally {
+                    input.value = '';
+                }
+            };
+            reader.readAsText(file);
+        };
+
 
         window.escapeHtml = function(text) {
             if (!text) return '';
@@ -547,16 +627,65 @@
             }
         };
 
-        // --- Block Priority Badges & Drag-and-Drop ---
+        // --- Block Priority Badges, Manual Typing & Drag-and-Drop ---
         function updateBlockPriorityBadges() {
             const items = document.querySelectorAll('#blocks-list .block-item');
+            const total = items.length;
             items.forEach((item, idx) => {
+                const input = item.querySelector('.priority-input');
+                if (input) {
+                    input.value = idx + 1;
+                    input.max = total;
+                }
                 const badge = item.querySelector('.priority-badge');
                 if (badge) badge.textContent = `#${idx + 1} Prioridade`;
             });
         }
 
+        window.changeBlockPriority = function(inputEl) {
+            const list = document.getElementById('blocks-list');
+            if (!list) return;
+
+            const currentBlock = inputEl.closest('.block-item');
+            if (!currentBlock) return;
+
+            const items = Array.from(list.querySelectorAll('.block-item'));
+            const total = items.length;
+            if (total <= 1) {
+                updateBlockPriorityBadges();
+                return;
+            }
+
+            let targetPos = parseInt(inputEl.value);
+            if (isNaN(targetPos) || targetPos < 1) targetPos = 1;
+            if (targetPos > total) targetPos = total;
+
+            const currentIdx = items.indexOf(currentBlock);
+            const targetIdx = targetPos - 1;
+
+            if (currentIdx === targetIdx) {
+                updateBlockPriorityBadges();
+                return;
+            }
+
+            if (targetIdx === 0) {
+                list.insertBefore(currentBlock, list.firstChild);
+            } else if (targetIdx >= total - 1) {
+                list.appendChild(currentBlock);
+            } else {
+                if (targetIdx > currentIdx) {
+                    items[targetIdx].after(currentBlock);
+                } else {
+                    items[targetIdx].before(currentBlock);
+                }
+            }
+
+            updateBlockPriorityBadges();
+            saveBlockReorder();
+        };
+
         async function saveBlockReorder() {
+
             const items = document.querySelectorAll('#blocks-list .block-item');
             const blockIds = Array.from(items).map(item => parseInt(item.dataset.blockId));
             if (!blockIds.length) return;
@@ -717,10 +846,23 @@
                                 <div style="display: flex; align-items: flex-start; gap: 0.5rem; flex: 1;">
                                     <span class="drag-handle" title="Arraste para priorizar" style="cursor: grab; color: var(--text-muted); font-size: 1.1rem; user-select: none; padding-top: 2px;">⠿</span>
                                     <div style="flex: 1;">
-                                        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
-                                            <span class="priority-badge" style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 2px 6px; border-radius: 10px; font-weight: 700;">#Prioridade</span>
-                                            <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">${escapeHtml(data.type || 'Informação')}</span>
+                                        <div style="display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem;">
+                                            <span style="font-size: 0.75rem; color: #a5b4fc; font-weight: 700;">#</span>
+                                            <input type="number" 
+                                                   class="priority-input" 
+                                                   value="1" 
+                                                   min="1" 
+                                                   max="1" 
+                                                   title="Digite o número para alterar a prioridade"
+                                                   onchange="changeBlockPriority(this)"
+                                                   onkeydown="if(event.key === 'Enter') this.blur();"
+                                                   style="width: 44px; font-size: 0.75rem; font-weight: 700; background: rgba(99, 102, 241, 0.25); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.5); border-radius: 6px; padding: 1px 4px; text-align: center; outline: none; transition: border 0.2s;"
+                                                   onfocus="this.style.borderColor='#818cf8'; this.select();"
+                                                   onblur="this.style.borderColor='rgba(99, 102, 241, 0.5)';" />
+                                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Prioridade</span>
+                                            <span style="font-size: 0.7rem; color: var(--primary); font-weight: 600; text-transform: uppercase; margin-left: 0.3rem;">${escapeHtml(data.type || 'Informação')}</span>
                                         </div>
+
                                         <p class="block-display-content" style="font-size: 0.9rem; color: #e2e8f0; margin-top: 0.2rem; white-space: pre-wrap;">${escapeHtml(data.content)}</p>
                                         
                                         <div class="block-edit-form" style="display: none; margin-top: 0.5rem;">
