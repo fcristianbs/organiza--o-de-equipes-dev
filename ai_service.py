@@ -81,11 +81,19 @@ DIRETRIZES DE PROCESSAMENTO:
 5. Retorne APENAS o texto bruto formatado em Markdown, sem blocos de código (```markdown) em volta do texto final.
 """
     
-    response = client.models.generate_content(
-        model='gemini-3.6-flash',
-        contents=prompt
-    )
-    return response.text.strip()
+    models_to_try = ['gemini-3.0-flash', 'gemini-3.5-flash']
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"Erro ao gerar markdown com o modelo {model_name}: {e}")
+            continue
+            
+    raise Exception("Todos os modelos falharam na geração de conteúdo.")
 
 
 def reformulate_task_markdown(task_title, current_markdown, comment):
@@ -117,10 +125,18 @@ DIRETRIZES DE REFORMULAÇÃO:
 4. Retorne APENAS o texto bruto formatado em Markdown, sem blocos de código (```markdown) em volta do texto final.
 """
 
-    response = client.models.generate_content(
-        model='gemini-3.6-flash',
-        contents=prompt
-    )
-    return response.text.strip()
+    models_to_try = ['gemini-3.0-flash', 'gemini-3.5-flash']
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"Erro ao reformular markdown com o modelo {model_name}: {e}")
+            continue
+            
+    raise Exception("Todos os modelos falharam na geração de conteúdo.")
 
 

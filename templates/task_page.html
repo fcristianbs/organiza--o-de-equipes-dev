@@ -9,6 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    </script>
     <style>
         body { padding: 2rem; background: var(--bg-dark); overflow-y: auto; height: auto; }
         .task-page-container {
@@ -123,7 +127,8 @@
 
         
         <!-- Seção de IA e Blocos -->
-        <div class="ai-sect            <div class="blocks-panel">
+        <div class="ai-section">
+            <div class="blocks-panel">
                 <h3>Blocos de Informação <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(Digite a prioridade ou arraste ⠿)</span></h3>
                 <div class="blocks-list" id="blocks-list">
                     {% for block in blocks %}
@@ -335,6 +340,11 @@
             if (!descContainer) return;
             if (markdownText && markdownText.trim() !== '') {
                 descContainer.innerHTML = safeRenderMarkdown(markdownText);
+                try {
+                    await mermaid.run({ nodes: descContainer.querySelectorAll('.language-mermaid') });
+                } catch(e) {
+                    console.log('Mermaid init bypass:', e);
+                }
                 await loadTaskSectionComments();
                 attachTopicCommentButtons();
             } else {
