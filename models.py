@@ -35,6 +35,7 @@ class Task(db.Model):
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=True)
     generated_markdown = db.Column(db.Text, nullable=True)
+    technical_markdown = db.Column(db.Text, nullable=True)
     phase = db.Column(db.String(50), default='Ideação/Requisitos')
 
     status = db.Column(db.String(50), default='Pendente')

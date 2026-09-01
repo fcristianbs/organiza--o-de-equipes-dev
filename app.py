@@ -534,6 +534,7 @@ def get_task(task_id):
         'title': t.title,
         'description': t.description,
         'generated_markdown': t.generated_markdown,
+        'technical_markdown': t.technical_markdown,
         'phase': t.phase,
         'status': current_status,
         'deadline': t.deadline.strftime('%Y-%m-%d') if t.deadline else None,
@@ -610,7 +611,13 @@ def add_task_block(task_id):
     )
     db.session.add(block)
     db.session.commit()
-    return jsonify({'id': block.id, 'type': block.block_type, 'content': block.content, 'position': block.position}), 201
+    return jsonify({
+        'id': block.id, 
+        'type': block.block_type, 
+        'content': block.content, 
+        'position': block.position,
+        'created_at': block.created_at.strftime('%d/%m/%Y %H:%M') if block.created_at else ''
+    }), 201
 
 @app.route('/api/blocks/<int:block_id>', methods=['PUT'])
 def edit_task_block(block_id):
@@ -746,6 +753,16 @@ def update_task_markdown(task_id):
     task.generated_markdown = markdown_content
     db.session.commit()
     return jsonify({'message': 'Markdown da tarefa atualizado com sucesso', 'markdown': task.generated_markdown})
+
+
+@app.route('/api/tasks/<int:task_id>/technical_markdown', methods=['PUT'])
+def update_task_technical_markdown(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json or {}
+    markdown_content = data.get('markdown', '')
+    task.technical_markdown = markdown_content
+    db.session.commit()
+    return jsonify({'message': 'Markdown Técnico atualizado com sucesso', 'markdown': task.technical_markdown})
 
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
